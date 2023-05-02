@@ -235,17 +235,22 @@ poison_deaths_rates_hb <- poison_admissions_hb %>%
   left_join(poison_deaths_hb, by = c("hbr")) %>%
   mutate(death_rate = total_poison_deaths/total_poison_admissions)
 
-#we are not printing the table due to space limitation (You can print it by deleting the hashtag) 
-#poison_deaths_rates_hb
 
+#to display the table limiting decimals to 3 
+kable(poison_deaths_rates_hb, 
+      caption = "Death rates in Scotland for poisoning. 2011-2020", 
+      digits = 3) %>%
+  kable_styling(latex_options = c("HOLD_position"), font_size = 12)
 ```
 
 
 In this chunk of code we read the .shp file containing the vector data with the health board boundaries and join our newly created table *poison_deaths_rates_hb* to it.
 
 ```{r }
-#read in .shp file
-scotland_hb <- st_read("C:/Users/Casa/Desktop/IRM/Injuries/SG_NHS_HealthBoards_2019.shp")
+#read in .shp file 
+#you need to use your own path where you downloaded the files
+path <- "C:/Users/Casa/Desktop/IRM/Injuries/SG_NHS_HealthBoards_2019.shp"
+scotland_hb <- st_read(path)
 
 #join the spatial data with the poisoning data
 join_data <- scotland_hb %>%
@@ -261,8 +266,8 @@ map3 <- ggplot(join_data, aes(fill = death_rate)) +
   geom_sf(size = 0.3, color = "#1f1b39") + 
   scale_fill_viridis_c(option = "viridis", direction = -1) +
     labs(
-    title = "Poisoning Death Rates - Scotland",
-    subtitle = "2011-2020") +
+    title = "Poisoning Death Rates by Health Board",
+    subtitle = "Scotland 2011-2020") +
   coord_sf() +
   theme_void()
 
@@ -270,8 +275,8 @@ map2 <- ggplot(join_data, aes(fill = total_poison_deaths)) +
   geom_sf(size = 0.3, color = "#1f1b39") + 
   scale_fill_viridis_c(option = "viridis", direction = -1) +
     labs(
-    title = "Poisoning Deaths - Scotland",
-    subtitle = "2011-2020") +
+    title = "Poisoning Deaths by Health Board",
+    subtitle = "Scotland 2011-2020") +
   coord_sf() +
   theme_void()
 
@@ -279,8 +284,8 @@ map1 <- ggplot(join_data, aes(fill = total_poison_admissions)) +
   geom_sf(size = 0.3, color = "#1f1b39") + 
   scale_fill_viridis_c(option = "viridis", direction = -1) +
     labs(
-    title = "Poisoning admissions - Scotland",
-    subtitle = "2011-2020") +
+    title = "Poisoning admissions by Health Board",
+    subtitle = "Scotland 2011-2020") +
   coord_sf() +
   theme_void()
 ```
@@ -307,17 +312,17 @@ plot_grid(map1, map2, map3, align = "hv")
 
 Regarding to poisoning admissions during the period 2011 and 2020 in Scotland (Values extracted from the table that feeds the maps figure: **poison_deaths_rates_hb** ):
 
-1. NHS Greater Glasgow and Clyde has the highest number of admissions (18744)
+1. NHS Greater Glasgow and Clyde has the highest number of admissions (19390)
 
-2. NHS Orkney has the lowest number of admissions (110)
+2. NHS Orkney has the lowest number of admissions (104)
 
-3. NHS Greater Glasgow and Clyde has the highest number of deaths (5414)
+3. NHS Greater Glasgow and Clyde has the highest number of deaths (5888)
 
 4. NHS Orkney has the lowest number of deaths (20)
 
-5. NHS Tayside has the **highest death rate** (0.477)
+5. NHS Tayside has the **highest death rate** (0.467)
 
-6. NHS Western Isles has **the lowest death rate** (0.071)
+6. NHS Western Isles has **the lowest death rate** (0.059)
 
 
 
