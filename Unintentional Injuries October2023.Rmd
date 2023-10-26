@@ -416,4 +416,5 @@ H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New Yor
   
 [Spatial Data Metadata Portal](https://spatialdata.gov.scot/geonetwork/srv/eng/catalog.search#/home), Scotland’s catalogue of spatial data. 
   
-
+# About me
+[www.inmaruiz.com](https://www.inmaruiz.com)
