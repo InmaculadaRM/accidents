@@ -19,6 +19,10 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 In this report I am going to analyse data on admissions to hospital and deaths in Scotland from unintentional injuries and assaults covering a ten year period (2013 - 2022). The analysis will be centered on the task of exploring which types of injures were the most common cause for admissions according to age and sex and on finding the death rates in admissions resulted for those main causes. Additionally, we will have a close look into the injury cause with the highest death ratio after admission. 
 
+# Why
+
+To identify the most common and deadly unintentional injuries in Scotland, so that prevention campaigns can be targeted to the highest-risk groups and causes.
+
 # Data Packages
 
 We load the software packages we are going to use: tidyverse, janitor, lubridate, kableExtra, formatR, scales.
