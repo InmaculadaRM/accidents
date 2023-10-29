@@ -1,0 +1,460 @@
+---
+title: "Common causes of unintentional injuries in Scotland"
+subtitle: "Patterns in demographic groups and death rates on 2013-2022 data "
+author: "Inma Ruiz"
+date: "`r format(Sys.time(), '%d-%m-%Y')`"
+output: 
+  html_document:
+    toc: true 
+    number_sections: true
+urlcolor: blue
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Overview
+
+In this report I am going to analyse data on admissions to hospital and deaths in Scotland from unintentional injuries covering a ten-year period (2013 - 2022). The analysis will be centered on the task of exploring which types of injuries were the most common cause for admissions according to age groups and sex and on finding the death rates in admissions resulted for those main causes. Additionally, we will have a close look into the injury cause with the highest death ratio after admission. 
+
+# Why
+
+To identify the most common and deadly unintentional injuries in Scotland, so that prevention campaigns can be targeted to the highest-risk groups and causes and to provide with the appropriate resources to each health board.
+
+
+# Data Packages
+
+We load the software packages we are going to use: tidyverse, janitor, lubridate, kableExtra, formatR, scales.
+
+```{r libraries, message=FALSE, warning=FALSE, tidy.opts=list(width.cutoff=80), tidy = TRUE}
+# Mount packages
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(kableExtra)
+library(formatR)
+library(scales)
+```
+
+
+# About the data
+
+To perform this report, two datasets has been retrieved from [The Scottish Health and Social Care Open Data platform](https://www.opendata.nhs.scot/) for their analysis:
+
+1. [Admissions](https://www.opendata.nhs.scot/dataset/b0135993-3d8a-4f3b-afcf-e01f4d52137c/resource/aee43295-2a13-48f6-bf05-92769ca7c6cf), Containing 391104 observations with information for 14 variables on emergency hospital admissions as a result of unintentional injuries and assaults.
+
+2. [Deaths](https://www.opendata.nhs.scot/dataset/b0135993-3d8a-4f3b-afcf-e01f4d52137c/resource/89807e07-fc5f-4b5e-a077-e4cf59491139/download/ui_deaths_-2022-.csv), Containing 1825202 observations with information for 14 variables on deaths as a result of an unintentional injury.
+
+
+```{r read in the data}
+#read in .csv files with the data
+
+raw_admissions <- read_csv("https://www.opendata.nhs.scot/dataset/b0135993-3d8a-4f3b-afcf-e01f4d52137c/resource/aee43295-2a13-48f6-bf05-92769ca7c6cf/download/ui_admissions_2023.csv")
+
+raw_deaths <- read_csv("https://www.opendata.nhs.scot/dataset/b0135993-3d8a-4f3b-afcf-e01f4d52137c/resource/89807e07-fc5f-4b5e-a077-e4cf59491139/download/ui_deaths_-2023-.csv")
+```
+
+
+# Exploratory Data Analysis
+
+We started exploring the data by reading the Data Dictionary provided in the [plataform](https://www.opendata.nhs.scot/dataset/b0135993-3d8a-4f3b-afcf-e01f4d52137c/resource/aee43295-2a13-48f6-bf05-92769ca7c6cf) and by opening both csv files in the R Studio environment, where we checked number of rows and columns, variable names and types of variables. We noticed a mixed naming style on variables and decided to use the clean_names() function right at the begging, creating two new objects: **admissions** and **deaths** that will be our main data feed for all the wrangling and analysis. After cleaning the names, we checked again our new created objects to see the new variable names. In this stage we also looked for variables susceptible to be used as the joining argument, and problems that we may encounter (eg: *financial_year* in *admissions* dataset is a character type variable where *year* in *deaths* dataset is numeric type).
+
+
+# cleaning names
+
+```{r cleaning}
+#To have all variables with the same naming style
+admissions <- raw_admissions %>%  clean_names()
+deaths <- raw_deaths %>% clean_names()
+```
+
+
+# categories
+
+Possible values for all categorical variables were systematically explored with the distinct(), count() or unique() functions. One example included in the code below, where we can see injury_types names varies in both datasets. We also found duplication in the data due to aggregation of categories in an additional categories named as "All" (or similar). Although we noticed that the category referred as "All" was not always equal to the sums of the other, in any case, we considered we can safely exclude those observations from the analysis by subseting only the categories we want to explore. 
+
+
+```{r exploring}
+# example of how columns were explored to find its unique categories
+admissions %>%
+  distinct(injury_type)
+```
+
+
+# Plotting Unintended Injuries hospital admissions 
+
+For finding and visualizing the most common types injures by age group and sex we have use the data available for the full 10 years period. We have reduce the partitions for the age group aggregation into four groups, making its visualization and understanding more intuitive and less confusing: The wider groups created  0-14, 15-44, 45-65, 75+ can easily be related with common vulnerabilities, behaviors or risk exposures in children, young adults, middle age adults and older adults.
+
+
+```{r wrangling + ploting}
+#color palette for the plot (more contrasted that the default ggplot palette).
+mycolors <- c( 
+  "#6b83d7","#6ec8fa","#e24aae", "#b5c0ce", "#b1ff0b", "#38214e", "#ffc8f1", "#a94ad1"
+           )
+#subseting the data for the plot, selecting and changing some variable types.
+admissions %>%
+  separate(financial_year, into = c("year", NA), sep = "/") %>%
+  transmute(
+    year,
+    sex = as.factor(sex),
+    age_group = as.factor(age_group),
+    injury_type = as.factor(injury_type),
+    number_of_admissions
+  ) %>%
+  # filtering to eliminate aggregated data
+  filter(age_group != "All" &
+           sex != "All" &  injury_type != "All Diagnoses") %>%
+  # Reducing age groups into 4 with a wider age range resulted in a better 
+  # grasp of similar risky behaviors/exposure/vulnerabilities.
+  mutate(
+    age_group = case_when(
+      age_group == "0-4 years" ~ "0-14 years",
+      age_group == "5-9 years" ~ "0-14 years",
+      age_group == "10-14 years" ~ "0-14 years",
+      age_group == "15-24 years" ~ "15-44 years",
+      age_group == "25-44 years" ~ "15-44 years",
+      age_group == "45-64 years" ~ "45-64 years",
+      age_group == "65-74 years" ~ "45-64 years",
+      age_group == "75plus years" ~ "75+ years")) %>%
+  group_by(injury_type, age_group, sex) %>%
+  summarise(total = sum(number_of_admissions)) %>%
+  ggplot(aes(sex, total, fill = injury_type)) +
+  geom_col() + scale_fill_manual(values=mycolors) +
+  facet_wrap(~  age_group, nrow = 1) +
+  scale_y_continuous(labels = label_number(suffix = " K", scale = 1e-3)) +
+  labs(
+    title = "Unintentional Injuries in Scotland",
+    subtitle = "Hospital admissions by cause, age and sex (2013-2022)",
+    caption = "Data source: Public Health Scotland",
+    y = "Total number of admisions",
+    x = " ",
+    fill = "Type of injury" ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(face= 'bold', size = 20),
+    plot.subtitle = element_text(color = "steelblue", size = 14, margin = margin(3, 0, 20, 0)))
+
+```
+
+
+# Rate of death
+
+In this piece of code we first created the table **"total_admissions"** with all admissions grouped by injury type. We had to change some names of the categories in order to match those on the second dataset. Then, we created a second table **"total_deaths"** with number of deaths by injury type. Both newly created tables were joined into a new one called **admissions_deaths**. Death rates in admissions were calculated for each injury cause with the mutate() function. The resulting ranking table is shown below.
+
+```{r tables}
+#create a table with number of admission per type of injury
+total_admissions <- admissions %>%
+  separate(financial_year, into = c("year", NA), sep = "/") %>% 
+  select(sex, age_group, injury_type, number_of_admissions) %>%
+  #categories in both datasets need to have same names
+  mutate(injury_type = str_replace(injury_type, "RTA", "Land transport accidents"), 
+         injury_type = str_replace(injury_type, "Struck by, against", "Struck by,against"),
+         injury_type = str_replace(injury_type, "Accidental Exposure", "Accidental exposure")
+         ) %>%
+  #filtering to eliminate duplicated data
+  filter(age_group != "All" & sex != "All" & injury_type != "All Diagnoses") %>%
+  group_by(injury_type) %>%
+  summarise(total_admissions = sum(number_of_admissions, na.rm=TRUE))
+
+
+#create a table with number of death per type of injury
+total_deaths <- deaths %>%
+  select(sex, age_group, injury_type, numberof_deaths) %>%
+  #filtering to eliminate duplicated data
+  filter(age_group != "All" &  sex != "All" &  injury_type != "All") %>%
+  group_by(injury_type) %>%
+  summarise(total_deaths = sum(numberof_deaths, na.rm=TRUE))
+
+
+#join both tables and calculate rate of death in admissions 
+#per type of injury 
+admissions_deaths <- total_admissions %>%
+  left_join(total_deaths, by = c("injury_type")) %>%
+  mutate(death_rate = total_deaths/total_admissions) %>%
+  #ordering the values in descending order by death ratio
+  arrange(desc(death_rate))
+
+#to display the table limiting decimals to 3 
+kable(admissions_deaths, 
+      caption = "Death rates in Scotland for injury types. 2013-2022", 
+      digits = 3) %>%
+  kable_styling(latex_options = c("HOLD_position"), font_size = 12)
+```
+
+# Visualizing death rate by injury type
+
+```{r}
+admissions_deaths %>%
+  ggplot(aes(x = reorder(injury_type, death_rate), y = death_rate)) +
+  geom_col(color="red", fill='pink') + 
+  coord_flip() +
+  labs(
+    title = "Death rates by Injury type",
+    subtitle = "Scotland 2013-2022",
+    caption = "Data source: Public Health Scotland",
+    y = "Rate of death after admission",
+    x = "",
+    fill = "total_deaths" ) +
+  geom_text(aes(label = round(death_rate, 3)), hjust = -0.1, size = 3, color='red')
+  
+    
+    
+  
+```
+
+# Findings
+
+1. **Having a fall was the most common reason for hospital admission** for all age groups and sexes.
+
+2. **For under 75 years old, there have been more hospital admissions for males than for females**, being this difference greater for the age group 15-44 years. This may be due to males more prone to engage themselves in risky activities and behaviors than their females counterparts.
+
+3. **For the 75+ years group, there have been more admissions of females than males**. Probably due to the higher proportion of female versus males in the total population within this age bracket.
+
+4. Males between 15 to 44 years have the higher total number of admissions for poisoning, accidental exposure, other injuries, traffic accident and Struct by.
+
+5. Among all the unintentional injury causes registered in admission, **poisoning have the higher death rate (0.294)**,  calculated for the 10 years data. Followed by transport accidents (death rate = 0.061) and falls (death rate = 0.030). 
+
+
+
+# Futher exploration based on results
+
+As poisoning was by far the type of injury with the highest death rate in admissions among all injury types, further exploration focused in this cause were performed. We decided to explore how admissions, deaths and death rates differ across all the NHS health boards. 
+
+
+# Poisoning death rates on each NHS Scottish Health Board
+
+We have calculated total admissions for poisoning for each health board form the data in the **admissions** dataset, and total deaths for poisoning for each health board from the data in the **deaths** dataset. Then, joined both together. 
+
+```{r poisoning by Health Board}
+#create a table with total poison adissions by health board
+poison_admissions_hb <- admissions %>%
+  separate(financial_year, into = c("year", NA), sep = "/") %>%
+  select ( year, hbr, sex, age_group, injury_type, number_of_admissions) %>%
+  #filtering to eliminate aggregated data and subseting poisoning
+  filter(age_group != "All" & sex != "All" & hbr != "S92000003" & 
+           injury_type == "Poisoning") %>%
+  group_by(hbr)%>%
+  summarise(total_poison_admissions = sum(number_of_admissions, na.rm=TRUE))
+
+#create a table with number of deaths due to poisoning in each Health Board
+poison_deaths_hb <- deaths %>%
+  select (year, hbr, sex, age_group, injury_type, numberof_deaths) %>%
+  #filtering to eliminate aggregated data and subseting poisoning
+  filter(age_group != "All" & sex != "All" & hbr != "S92000003" & 
+           injury_type == "Poisoning") %>%
+  group_by(hbr)%>%
+  summarise(total_poison_deaths = sum(numberof_deaths, na.rm=TRUE))
+
+#create a table by joining both tables 
+#and add column with rate of death calculation per Heath Board
+poison_deaths_rates_hb <- poison_admissions_hb %>%
+  left_join(poison_deaths_hb, by = c("hbr")) %>%
+  mutate(death_rate = total_poison_deaths/total_poison_admissions)
+
+#to display the table limiting decimals to 3 
+kable(poison_deaths_rates_hb, 
+      caption = "Poisoning data by HB 2013-2022", 
+      digits = 3) %>%
+  kable_styling(latex_options = c("HOLD_position"), font_size = 12)
+```
+
+# Adding the NHS Health Boards names to our table
+
+Not necessary for our map, but if you are no familiar with the code and want to add the names of the Health boards, you can do it by joining our data with the following one also from Public Health Scotland in which all 14 Health Boards are listed with their corresponding name and the country code for Scotland. 
+
+```{r, hbr names}
+HBR <- read_csv('https://www.opendata.nhs.scot/dataset/9f942fdb-e59e-44f5-b534-d6e17229cc7b/resource/652ff726-e676-4a20-abda-435b98dd7bdc/download/hb14_hb19.csv')
+
+hbr_names_poison <- HBR %>%
+inner_join(poison_deaths_rates_hb, by = c("HB" = "hbr")) %>%
+  select(HB, HBName, total_poison_admissions, total_poison_deaths, death_rate) %>%
+  arrange(desc(death_rate))
+
+kable(hbr_names_poison, 
+      caption = "Poisoning data for each health board (2013-2022)", 
+      digits = 3) %>%
+  kable_styling(latex_options = c("HOLD_position"), font_size = 12)
+
+
+```
+
+
+
+# Spatial data 
+
+For this additional analysis we have used [geographical spatial data for the Scottish Health Boards](https://spatialdata.gov.scot/geonetwork/srv/eng/catalog.search#/metadata/f12c3826-4b4b-40e6-bf4f-77b9ed01dc14), a ESRI Shape file spatial data defining the boundaries of NHS Health Boards in Scotland, Available open source from the [Spatial Data Metadata Portal](https://spatialdata.gov.scot/geonetwork/srv/eng/catalog.search#/home), Scotland’s catalogue of spatial data. 
+
+# Packages for dealing with spatial data 
+
+We load additional libraries for reading a dealing with this type of data
+```{r libraries for working with vectorial spatial data }
+# Load packages
+
+library(sp)
+library(sf)
+library(gridExtra)
+library(latticeExtra)
+```
+
+
+# Joining the spatial data with our health data 
+
+In this chunk of code we read the .shp file containing the vector data with the health board boundaries and join our newly created table *poison_deaths_rates_hb* to it.
+
+```{r }
+#read in .shp file 
+# you need to have all spatial data files in your working directory write your own file path
+path <- "C:/Users/Casa/Desktop/IRM/Injuries/SG_NHS_HealthBoards_2019.shp"
+scotland_hb <- st_read(path)
+
+#join the spatial data with the poisoning data
+join_data <- scotland_hb %>%
+inner_join(poison_deaths_rates_hb, by = c("HBCode" = "hbr"))
+```
+
+
+# Building  and plotting the chloropeth maps
+
+We create the 3 map plots
+
+```{r plots objects}
+
+map3 <- ggplot(join_data, aes(fill = death_rate)) + 
+  geom_sf(size = 0.3, color = "#1f1b39") + 
+  scale_fill_viridis_c(option = "viridis", direction = -1) +
+    labs(
+    title = "Death rate of poisoning",
+    subtitle = "period 2013-2022") +
+  coord_sf() +
+  theme_void()
+
+map2 <- ggplot(join_data, aes(fill = total_poison_deaths)) + 
+  geom_sf(size = 0.3, color = "#1f1b39") + 
+  scale_fill_viridis_c(option = "viridis", direction = -1) +
+    labs(
+    title = "Deaths for poisoning ",
+    subtitle = "on 2013-2022") +
+  coord_sf() +
+  theme_void()
+
+map1 <- ggplot(join_data, aes(fill = total_poison_admissions)) + 
+  geom_sf(size = 0.3, color = "#1f1b39") + 
+  scale_fill_viridis_c(option = "viridis", direction = -1) +
+    labs(
+    title = "Admissions for poisoning",
+    subtitle = "on 2013-2022") +
+  coord_sf() +
+  theme_void()
+```
+
+
+
+```{r}
+map1
+```
+
+```{r}
+map2
+```
+
+```{r}
+map3
+```
+
+
+
+
+
+
+# Plotting the maps all together in one figure
+
+We can also print the 3 maps plots together as one figure for comparing the visualization. For that we can use the cowplot package.
+
+```{r printing of the plots}
+#library containing the function plot_grid()
+library(cowplot)
+
+#plotting the 3 maps together
+plot_grid(map1, map2, map3, align = "hv")
+```
+
+>*Data sources: Public health Scotland and Scottish Government open data*
+
+
+
+# New findings
+
+Regarding to poisoning admissions during the period 2013 and 2022 in Scotland:
+
+1. NHS Greater Glasgow and Clyde has the highest number of admissions (19844)
+
+2. NHS Orkney has the lowest number of admissions (92)
+
+3. NHS Greater Glasgow and Clyde has the highest number of deaths (6122)
+
+4. NHS Orkney has the lowest number of deaths (18)
+
+5. NHS Tayside has the **highest death rate** (0.436)
+
+6. NHS Western Isles has **the lowest death rate** (0.060)
+
+
+
+
+# Software and packages used
+
+**R:** R Core Team (2022). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria.
+URLcitatiohttps://www.R-project.org/.
+
+**janitor:** Firke S (2021). _janitor: Simple Tools for Examining and Cleaning Dirty Data_. R package version 2.1.0,
+  <https://CRAN.R-project.org/package=janitor>..
+
+**Tidyverse:**  Wickham H, Averick M, Bryan J, Chang W, McGowan LD, François R, Grolemund G, Hayes A, Henry L, Hester J,
+  Kuhn M, Pedersen TL, Miller E, Bache SM, Müller K, Ooms J, Robinson D, Seidel DP, Spinu V, Takahashi K,
+  Vaughan D, Wilke C, Woo K, Yutani H (2019). “Welcome to the tidyverse.” _Journal of Open Source
+  Software_, *4*(43), 1686. doi:10.21105/joss.01686 <https://doi.org/10.21105/joss.01686>.
+
+**Knitr:** Yihui Xie (2022). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.40.
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016
+
+**kableExtra:**  Zhu H (2021). _kableExtra: Construct Complex Table with 'kable' and Pipe Syntax_. R package version 1.3.4, https://CRAN.R-project.org/package=kableExtra.
+  
+**ggplot:**  H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016
+
+**formatR**  Xie Y (2023). _formatR: Format R Code Automatically_. R package version 1.14,
+  <https://CRAN.R-project.org/package=formatR>.
+  
+**lubridate**   Garrett Grolemund, Hadley Wickham (2011). Dates and Times Made Easy with lubridate. Journal of
+  Statistical Software, 40(3), 1-25. URL https://www.jstatsoft.org/v40/i03/.
+
+
+**sp**   Pebesma, E.J., R.S. Bivand, 2005. Classes and methods for spatial data in R. R News 5 (2),
+  https://cran.r-project.org/doc/Rnews/.
+  Roger S. Bivand, Edzer Pebesma, Virgilio Gomez-Rubio, 2013. Applied spatial data analysis with R, Second
+  edition. Springer, NY. https://asdar-book.org/
+  
+**sf** Pebesma, E., 2018. Simple Features for R: Standardized Support for Spatial Vector Data. The R Journal 10
+  (1), 439-446, https://doi.org/10.32614/RJ-2018-00.
+  
+**gridExtra**  Auguie B (2017). _gridExtra: Miscellaneous Functions for "Grid" Graphics_. R package version 2.3,
+  <https://CRAN.R-project.org/package=gridExtra>.
+
+**laticeExtra** Sarkar D, Andrews F (2022). _latticeExtra: Extra Graphical Utilities Based on Lattice_. R package
+  version 0.6-30, <https://CRAN.R-project.org/package=latticeExtra>.
+  
+**cowplot** Wilke C (2020). _cowplot: Streamlined Plot Theme and Plot Annotations for 'ggplot2'_. R package version 1.1.1,
+  <https://CRAN.R-project.org/package=cowplot>.
+  
+[Spatial Data Metadata Portal](https://spatialdata.gov.scot/geonetwork/srv/eng/catalog.search#/home), Scotland’s catalogue of spatial data. 
+
+[Public Health Scotland](https://www.opendata.nhs.scot/)
+  
+
+
+# About me
+[www.inmaruiz.com](https://inmaruiz.com/index.php/bio/)
+
+
+
